@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valorant Agent Randomizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #ff4655;
+            --secondary-color: #0f1923;
+            --accent-color: #ece8e1;
+            --highlight-color: #bd3944;
+        }
+
+        body {
+            background-color: var(--secondary-color);
+            color: var(--accent-color);
+            font-family: 'Tungsten-Bold', 'Impact', sans-serif;
+            overflow-x: hidden;
+            cursor: none;
+        }
+
+        @font-face {
+            font-family: 'Tungsten-Bold';
+            src: url('https://db.onlinewebfonts.com/t/a1ca2f4498386a8ff1afe4a77d0a9078.eot');
+            src: url('https://db.onlinewebfonts.com/t/a1ca2f4498386a8ff1afe4a77d0a9078.eot?#iefix') format('embedded-opentype'),
+                 url('https://db.onlinewebfonts.com/t/a1ca2f4498386a8ff1afe4a77d0a9078.woff2') format('woff2'),
+                 url('https://db.onlinewebfonts.com/t/a1ca2f4498386a8ff1afe4a77d0a9078.woff') format('woff'),
+                 url('https://db.onlinewebfonts.com/t/a1ca2f4498386a8ff1afe4a77d0a9078.ttf') format('truetype'),
+                 url('https://db.onlinewebfonts.com/t/a1ca2f4498386a8ff1afe4a77d0a9078.svg#Tungsten-Bold') format('svg');
+        }
+
+        /* Custom cursor */
+        .cursor {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--primary-color);
+            border-radius: 50%;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 9999;
+            mix-blend-mode: difference;
+            transition: transform 0.2s ease;
+        }
+
+        .cursor-follower {
+            width: 8px;
+            height: 8px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 9998;
+            mix-blend-mode: difference;
+            transition: transform 0.4s ease, width 0.3s ease, height 0.3s ease;
+        }
+
+        /* 3D card effect */
+        .card-3d {
+            transform-style: preserve-3d;
+            transition: transform 0.5s ease;
+        }
+
+        /* Agent card animations */
+        @keyframes agentSelect {
+            0% { transform: translateY(0) rotateX(0) scale(0.5); opacity: 0; }
+            50% { transform: translateY(-20px) rotateX(30deg) scale(1.1); opacity: 0.8; box-shadow: 0 0 20px var(--primary-color); }
+            100% { transform: translateY(0) rotateX(0) scale(1); opacity: 1; }
+        }
+
+        .agent-selected {
+            animation: agentSelect 0.8s ease-out forwards;
+        }
+
+        /* Card flip animation */
+        @keyframes flipIn {
+            0% { transform: rotateY(90deg); opacity: 0; }
+            100% { transform: rotateY(0); opacity: 1; }
+        }
+
+        .card-flip {
+            animation: flipIn 0.6s ease-out forwards;
+            transform-style: preserve-3d;
+            transform-origin: center;
+        }
+
+        /* Agent reveal glow */
+        @keyframes glowPulse {
+            0% { box-shadow: 0 0 5px var(--primary-color); }
+            50% { box-shadow: 0 0 20px var(--primary-color); }
+            100% { box-shadow: 0 0 5px var(--primary-color); }
+        }
+
+        .glow-pulse {
+            animation: glowPulse 1.5s infinite ease-in-out;
+        }
+
+        /* Pulse effect for loading */
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.7; }
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+
+        /* Shimmer effect for card */
+        @keyframes shimmer {
+            0% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0.3; transform: scale(0.8); }
+        }
+        
+        .shimmer {
+            animation: shimmer 1.5s infinite ease-in-out;
+        }
+
+        /* Flash effect for newly assigned agent */
+        @keyframes flash {
+            0% { filter: brightness(100%); }
+            50% { filter: brightness(200%) drop-shadow(0 0 15px var(--primary-color)); }
+            100% { filter: brightness(100%); }
+        }
+
+        .flash {
+            animation: flash 0.5s ease-out;
+        }
+
+        /* Wheel styling */
+        .rolling-container {
+            width: 100%;
+            height: 40px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--primary-color);
+            border-radius: 4px;
+            background-color: rgba(15, 25, 35, 0.7);
+        }
+
+        .pointer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .pointer-overlay {
+            pointer-events: none;
+        }
+
+        .wheel-container {
+            perspective: 1000px;
+        }
+
+        .wheel {
+            transform-style: preserve-3d;
+            transition: transform 0.5s ease-out;
+        }
+
+        /* Agent icon hover effect */
+        .agent-img-container:hover {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 5px var(--primary-color));
+            transition: all 0.3s ease;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--secondary-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        /* Glow effect */
+        .glow {
+            box-shadow: 0 0 15px var(--primary-color);
+        }
+
+        /* Input field styling */
+        .player-input::placeholder {
+            color: rgba(236, 232, 225, 0.5);
+        }
+
+        .player-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(255, 70, 85, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <!-- Custom Cursors -->
+    <div class="cursor"></div>
+    <div class="cursor-follower"></div>
+
+    <!-- Main Container -->
+    <div class="min-h-screen flex flex-col items-center py-10 px-4 relative overflow-hidden">
+        <!-- Background 3D elements -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div class="absolute top-1/4 left-1/4 w-40 h-40 border-2 border-purple-500 rounded-full opacity-10 transform rotate-45" style="transform: rotate(45deg) translate3d(0, 0, 0);"></div>
+            <div class="absolute bottom-1/3 right-1/3 w-60 h-60 border-2 border-blue-500 rounded-full opacity-10 transform -rotate-12" style="transform: rotate(-12deg) translate3d(0, 0, 0);"></div>
+            <div class="absolute top-2/3 right-1/4 w-32 h-32 border-2 border-green-500 rounded-full opacity-10 transform rotate-30" style="transform: rotate(30deg) translate3d(0, 0, 0);"></div>
+        </div>
+
+        <!-- Header -->
+        <div class="relative z-10 w-full max-w-4xl mx-auto text-center">
+            <h1 class="text-6xl md:text-8xl font-bold mb-2 tracking-tighter uppercase" style="font-family: 'Tungsten-Bold'">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500">Agent</span> Randomizer
+            </h1>
+            <p class="text-lg text-gray-300 mb-8">Generate random agents for your Valorant team</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="relative z-10 w-full max-w-4xl mx-auto flex flex-col lg:flex-row gap-8">
+            <!-- Input Section -->
+            <div class="w-full lg:w-1/2 bg-gray-900 bg-opacity-70 p-6 rounded-lg border border-gray-800 shadow-lg transform transition-all hover:scale-101 card-3d">
+                <h2 class="text-4xl font-bold mb-6 text-primary-500 uppercase tracking-wider" style="font-family: 'Tungsten-Bold'">Add Players</h2>
+                
+                <div class="space-y-4 mb-6">
+                    <div class="flex items-center space-x-2">
+                        <input type="text" class="player-input flex-1 bg-gray-800 bg-opacity-70 border border-gray-700 rounded px-4 py-3 text-white placeholder-gray-400 focus:border-primary-500 transition" placeholder="Player Name">
+                        <button class="remove-player-btn bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded transition" disabled>
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-2 mb-6">
+                    <button id="add-player" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-4 py-3 rounded flex items-center justify-center space-x-2 transition">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Player</span>
+                    </button>
+                    <button id="clear-players" class="flex-1 bg-gray-700 hover:bg-gray-800 text-white px-4 py-3 rounded flex items-center justify-center space-x-2 transition">
+                        <i class="fas fa-trash"></i>
+                        <span>Clear All</span>
+                    </button>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-gray-300 mb-2">Number of Duplicates:</label>
+                    <select id="duplicates" class="w-full bg-gray-800 border border-gray-700 rounded px-4 py-3 text-white">
+                        <option value="0">No duplicates</option>
+                        <option value="1">Allow 1 duplicate</option>
+                        <option value="2">Allow 2 duplicates</option>
+                        <option value="3">Allow unlimited duplicates</option>
+                    </select>
+                </div>
+                
+                <button id="randomize" class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-lg font-bold uppercase tracking-wider transition duration-300 transform hover:scale-105 glow-hover">
+                    <i class="fas fa-random mr-2"></i> Randomize Agents
+                </button>
+            </div>
+            
+            <!-- Result Section -->
+            <div class="w-full lg:w-1/2 bg-gray-900 bg-opacity-70 p-6 rounded-lg border border-gray-800 shadow-lg transform transition-all hover:scale-101 card-3d">
+                <h2 class="text-4xl font-bold mb-6 text-primary-500 uppercase tracking-wider" style="font-family: 'Tungsten-Bold'">Results</h2>
+                
+                <div id="results-container" class="grid grid-cols-1 gap-4">
+                    <div class="text-center py-10 text-gray-400">
+                        <i class="fas fa-users text-4xl mb-2"></i>
+                        <p class="text-xl">Add players and generate random agents</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Valorant Agents Data -->
+    <script>
+        const agents = [
+            { name: "Brimstone", role: "Controller", img: "https://media.valorant-api.com/agents/9f0d8ba9-4140-b941-57d3-a7ad57c6b417/displayicon.png" },
+            { name: "Phoenix", role: "Duelist", img: "https://media.valorant-api.com/agents/eb93336a-449b-9c1b-0a54-a891f7921d69/displayicon.png" },
+            { name: "Sage", role: "Sentinel", img: "https://media.valorant-api.com/agents/569fdd95-4d10-43ab-ca70-79becc718b46/displayicon.png" },
+            { name: "Sova", role: "Initiator", img: "https://media.valorant-api.com/agents/ded3520f-4264-bfed-162d-b080e2abccf9/displayicon.png" },
+            { name: "Viper", role: "Controller", img: "https://media.valorant-api.com/agents/707eab51-4836-f488-046a-cda6bf494859/displayicon.png" },
+            { name: "Cypher", role: "Sentinel", img: "https://media.valorant-api.com/agents/117ed9e3-49f3-6512-3ccf-0cada7e3823b/displayicon.png" },
+            { name: "Reyna", role: "Duelist", img: "https://media.valorant-api.com/agents/a3bfb853-43b2-7238-a4f1-ad90e9e46bcc/displayicon.png" },
+            { name: "Killjoy", role: "Sentinel", img: "https://media.valorant-api.com/agents/1e58de9c-4950-5125-93e9-a0aee9f98746/displayicon.png" },
+            { name: "Breach", role: "Initiator", img: "https://media.valorant-api.com/agents/5f8d3a7f-467b-97f3-062c-13acf203c006/displayicon.png" },
+            { name: "Omen", role: "Controller", img: "https://media.valorant-api.com/agents/8e253930-4c05-31dd-1b6c-968525494517/displayicon.png" },
+            { name: "Jett", role: "Duelist", img: "https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/displayicon.png" },
+            { name: "Raze", role: "Duelist", img: "https://media.valorant-api.com/agents/f94c3b30-42be-e959-889c-5aa313dba261/displayicon.png" },
+            { name: "Skye", role: "Initiator", img: "https://media.valorant-api.com/agents/6f2a04ca-43e0-be17-7f36-b3908627744d/displayicon.png" },
+            { name: "Yoru", role: "Duelist", img: "https://media.valorant-api.com/agents/7f94d92c-4234-0a36-9646-3a87eb8b5c89/displayicon.png" },
+            { name: "Astra", role: "Controller", img: "https://media.valorant-api.com/agents/41fb69c1-4189-7b37-f117-bcaf1e96f1bf/displayicon.png" },
+            { name: "KAY/O", role: "Initiator", img: "https://media.valorant-api.com/agents/601dbbe7-43ce-be57-2a40-4abd24953621/displayicon.png" },
+            { name: "Chamber", role: "Sentinel", img: "https://media.valorant-api.com/agents/22697a3d-45bf-8dd7-4fec-84a9e28c69d7/displayicon.png" },
+            { name: "Neon", role: "Duelist", img: "https://media.valorant-api.com/agents/bb2a4828-46eb-8cd1-e765-15848195d751/displayicon.png" },
+            { name: "Fade", role: "Initiator", img: "https://media.valorant-api.com/agents/dade69b4-4f5a-8528-247b-219e5a1facd6/displayicon.png" },
+            { name: "Harbor", role: "Controller", img: "https://media.valorant-api.com/agents/95b78ed7-4637-86d9-7e41-71ba8c293152/displayicon.png" },
+            { name: "Gekko", role: "Initiator", img: "https://media.valorant-api.com/agents/e370fa57-4757-3604-3648-499e1f642d3f/displayicon.png" },
+            { name: "Deadlock", role: "Sentinel", img: "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt9fef100b6d9a7b8c/64b9fa5e2367df3f0982eecf/DL_icon.png" },
+            { name: "Iso", role: "Duelist", img: "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/bltf02e5afb5ee9fb85/6540ea3b79d3b05dfb3b4e2c/WT_ISO_KeyArt_thumbnail.png" },
+            { name: "Clove", role: "Controller", img: "https://media.valorant-api.com/agents/1dbf2d48-4a8d-6a7a-4fc3-14a79e36a7d5/displayicon.png" },
+            { name: "Vyse", role: "Initiator", img: "https://media.valorant-api.com/agents/2d0c8b9a-4b25-4ff9-6e7f-37b4da43c235/displayicon.png" },
+            { name: "Tejo", role: "Duelist", img: "https://media.valorant-api.com/agents/3e0c8b9a-4b25-4ff9-6e7f-37b4da43c235/displayicon.png" },
+            { name: "Waylay", role: "Sentinel", img: "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt5b3e4b74e12e20c2/61d8a63ddea73a236c56c795/V_AGENTS_587x900_Cypher.png" }
+        ];
+
+        // Random agent function
+        function getRandomAgent(usedAgents = [], maxDuplicates = 0) {
+            const availableAgents = agents.filter(agent => {
+                const count = usedAgents.filter(a => a.name === agent.name).length;
+                return count <= maxDuplicates;
+            });
+            
+            if (availableAgents.length === 0) {
+                return agents[Math.floor(Math.random() * agents.length)];
+            }
+            
+            return availableAgents[Math.floor(Math.random() * availableAgents.length)];
+        }
+
+        // Custom cursor
+        document.addEventListener('DOMContentLoaded', () => {
+            const cursor = document.querySelector('.cursor');
+            const follower = document.querySelector('.cursor-follower');
+            
+            document.addEventListener('mousemove', (e) => {
+                cursor.style.left = e.clientX + 'px';
+                cursor.style.top = e.clientY + 'px';
+                
+                setTimeout(() => {
+                    follower.style.left = e.clientX + 'px';
+                    follower.style.top = e.clientY + 'px';
+                }, 100);
+            });
+            
+            // Add hover effect for interactive elements
+            const interactiveElements = document.querySelectorAll('a, button, input, .card-3d');
+            interactiveElements.forEach(el => {
+                el.addEventListener('mouseenter', () => {
+                    cursor.style.transform = 'translate(-50%, -50%) scale(1.5)';
+                    follower.style.width = '16px';
+                    follower.style.height = '16px';
+                });
+                
+                el.addEventListener('mouseleave', () => {
+                    cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                    follower.style.width = '8px';
+                    follower.style.height = '8px';
+                });
+            });
+            
+            // Player input management
+            const playersContainer = document.querySelector('.space-y-4');
+            const addPlayerBtn = document.getElementById('add-player');
+            const clearPlayersBtn = document.getElementById('clear-players');
+            const randomizeBtn = document.getElementById('randomize');
+            const resultsContainer = document.getElementById('results-container');
+            const duplicatesSelect = document.getElementById('duplicates');
+            
+            let playerCount = 1;
+            
+            // Add new player input
+            addPlayerBtn.addEventListener('click', () => {
+                const newPlayerDiv = document.createElement('div');
+                newPlayerDiv.className = 'flex items-center space-x-2';
+                newPlayerDiv.innerHTML = `
+                    <input type="text" class="player-input flex-1 bg-gray-800 bg-opacity-70 border border-gray-700 rounded px-4 py-3 text-white placeholder-gray-400 focus:border-primary-500 transition" placeholder="Player Name">
+                    <button class="remove-player-btn bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded transition">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                playersContainer.appendChild(newPlayerDiv);
+                playerCount++;
+                
+                // Focus on the new input
+                newPlayerDiv.querySelector('input').focus();
+                
+                // Add event for remove button
+                newPlayerDiv.querySelector('.remove-player-btn').addEventListener('click', () => {
+                    playersContainer.removeChild(newPlayerDiv);
+                    playerCount--;
+                });
+            });
+            
+            // Clear all players
+            clearPlayersBtn.addEventListener('click', () => {
+                playersContainer.innerHTML = '';
+                
+                // Add back the first input
+                const firstPlayerDiv = document.createElement('div');
+                firstPlayerDiv.className = 'flex items-center space-x-2';
+                firstPlayerDiv.innerHTML = `
+                    <input type="text" class="player-input flex-1 bg-gray-800 bg-opacity-70 border border-gray-700 rounded px-4 py-3 text-white placeholder-gray-400 focus:border-primary-500 transition" placeholder="Player Name">
+                    <button class="remove-player-btn bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded transition" disabled>
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                playersContainer.appendChild(firstPlayerDiv);
+                playerCount = 1;
+                
+                // Clear results
+                resultsContainer.innerHTML = `
+                    <div class="text-center py-10 text-gray-400">
+                        <i class="fas fa-users text-4xl mb-2"></i>
+                        <p class="text-xl">Add players and generate random agents</p>
+                    </div>
+                `;
+            });
+            
+            // Randomize button click
+            randomizeBtn.addEventListener('click', () => {
+                const playerInputs = document.querySelectorAll('.player-input');
+                const playerNames = Array.from(playerInputs).map(input => input.value.trim()).filter(name => name !== '');
+                
+                if (playerNames.length === 0) {
+                    alert('Please add at least one player!');
+                    return;
+                }
+                
+                // Clear results with animation
+                resultsContainer.style.opacity = 0;
+                setTimeout(() => {
+                    resultsContainer.innerHTML = '';
+                    resultsContainer.style.opacity = 1;
+                }, 300);
+                
+                // Show loading state
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'text-center py-10';
+                loadingDiv.innerHTML = `
+                    <div class="flex justify-center mb-4">
+                        ${Array(5).fill().map((_, i) => `
+                            <div class="w-4 h-4 mx-1 bg-primary-500 rounded-full pulse" style="animation-delay: ${i * 0.1}s"></div>
+                        `).join('')}
+                    </div>
+                    <p class="text-xl text-primary-100 uppercase tracking-wider">Shuffling Agents...</p>
+                    <p class="text-sm text-gray-300 mt-2">Preparing ultimate abilities</p>
+                `;
+                resultsContainer.appendChild(loadingDiv);
+                
+                // Get max duplicates allowed
+                const maxDuplicates = parseInt(duplicatesSelect.value);
+                
+                // Assign agents with card flip animations
+                setTimeout(() => {
+                    resultsContainer.innerHTML = '';
+                    const usedAgents = [];
+                    
+                    playerNames.forEach((player, index) => {
+                        setTimeout(() => {
+                            const card = document.createElement('div');
+                            card.className = 'bg-gray-800 rounded-lg p-4 border-l-4 border-primary-500 mb-4';
+                            card.innerHTML = `
+                                <h3 class="text-xl font-bold mb-3">${player || 'Player ' + (index + 1)}</h3>
+                                <div class="card-front w-full h-24 bg-gray-900 rounded-lg flex items-center justify-center text-gray-400 uppercase tracking-wider">
+                                    <div class="pulse flex items-center space-x-2">
+                                        <i class="fas fa-random"></i>
+                                        <span>Selecting Agent...</span>
+                                    </div>
+                                </div>
+                                <div class="card-back hidden">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-primary-500 flex-shrink-0 agent-img-container relative">
+                                            <img class="w-full h-full object-cover">
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="agent-name text-primary-500 text-xl font-bold"></span>
+                                                <span class="agent-role text-xs bg-gray-700 px-2 py-1 rounded-full"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            resultsContainer.appendChild(card);
+
+                            // After loading animation, reveal the agent
+                            setTimeout(() => {
+                                const agent = getRandomAgent(usedAgents, maxDuplicates);
+                                usedAgents.push(agent);
+                                
+                                const cardFront = card.querySelector('.card-front');
+                                const cardBack = card.querySelector('.card-back');
+                                
+                                // Hide front, show back with animation
+                                cardFront.classList.add('hidden');
+                                cardBack.classList.remove('hidden');
+                                cardBack.classList.add('card-flip');
+
+                                // Set agent info
+                                cardBack.querySelector('img').src = agent.img;
+                                cardBack.querySelector('.agent-name').textContent = agent.name;
+                                cardBack.querySelector('.agent-role').textContent = agent.role;
+
+                                // Add glow effect to highlight the selected agent
+                                cardBack.querySelector('.agent-img-container').classList.add('glow-pulse');
+                                
+                                // Add hover effect
+                                card.classList.add('transform', 'transition-transform', 'hover:scale-105');
+                            }, 1000 + (index * 300));
+                            
+                        }, index * 300); // Small stagger between players
+                    });
+                }, 500);
+            });
+            
+            // 3D hover effects for cards
+            const cards = document.querySelectorAll('.card-3d');
+            cards.forEach(card => {
+                card.addEventListener('mousemove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    
+                    const angleX = (y - centerY) / 20;
+                    const angleY = (centerX - x) / 20;
+                    
+                    card.style.transform = `perspective(1000px) rotateX(${angleX}deg) rotateY(${angleY}deg) scale(1.02)`;
+                    card.style.boxShadow = `${angleY * 2}px ${angleX * 2}px 15px rgba(0, 0, 0, 0.3)`;
+                });
+                
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale(1)';
+                    card.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)';
+                });
+            });
+            
+            // Glow effect on buttons
+            const glowButtons = document.querySelectorAll('.glow-hover');
+            glowButtons.forEach(button => {
+                button.addEventListener('mouseenter', () => {
+                    button.classList.add('glow');
+                });
+                
+                button.addEventListener('mouseleave', () => {
+                    button.classList.remove('glow');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
